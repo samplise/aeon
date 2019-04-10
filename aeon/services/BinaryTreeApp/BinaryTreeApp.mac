@@ -1,0 +1,356 @@
+
+#include <stdlib.h>
+
+service BinaryTreeApp;
+provides Null;
+
+typedefs {
+}
+services {
+
+}
+
+constants {
+  uint16_t SYNC_OP = 0;
+  uint16_t ASYNC_OP = 1;
+}
+
+constructor_parameters {
+  uint32_t MAX_N_NODE = 50;
+  uint32_t N_CLIENT = 1;
+  uint64_t OUTPUT_COUNT = 10;
+
+  uint32_t SYNC_PC = 50;
+    
+  uint32_t H = 2;
+  uint64_t OUTER_LOOP = 100;
+  uint64_t INNER_LOOP = 10000;
+}
+
+messages {
+
+}
+
+auto_types {
+  
+}
+ 
+state_variables {
+  context Client<uint32_t clindId> {
+    uint32_t clientId;
+
+    uint64_t totalReqCount;
+    uint64_t syncReqCount;
+    uint64_t asyncReqCount;
+        
+    uint64_t lastReqLauchedTime;
+    uint16_t lastOpType;
+    
+    uint64_t totalReqLatency;
+    uint64_t syncReqLatency;
+    uint64_t asyncReqLatency;
+    uint64_t deleteReqLatency;
+  }
+
+  context BinaryTree {
+    uint32_t rootNodeId;
+    uint32_t nextNodeId;
+  }
+
+  context BinaryTreeNode<uint32_t nodeId> {
+    uint32_t l_node;
+    uint32_t n_l_children;
+
+    uint32_t r_node;
+    uint32_t n_r_children;
+  }
+
+}
+
+
+ 
+transitions {
+  downcall maceInit()  {
+    ADD_SELECTORS("BinaryTreeApp");
+    maceout << "Start BinaryTreeApp!" << Log::endl;
+    async_initBinaryTree();
+  }
+
+  async [Client<cId>] initClient(const uint32_t& cId ) {
+    ADD_SELECTORS("BinaryTreeApp");
+    maceout<< "To initialize Client " << cId << Log::endl;
+    clientId = cId;
+       
+    totalReqCount = 0;
+    syncReqCount = 0;
+    asyncReqCount = 0;
+        
+    totalReqLatency = 0;
+    syncReqLatency = 0;
+    asyncReqLatency = 0;
+    
+    async_launchRequest(clientId);
+  }
+
+  async [Client<cId>] launchRequest( const uint32_t& cId ) {
+    ADD_SELECTORS("BinaryTree");
+      
+    uint32_t nextNodeId = ( rand()+cId ) % MAX_N_NODE + 1;
+    
+    uint64_t pc = ( rand()+nextNodeId ) % 100;
+    lastReqLauchedTime = mace::getmtime();
+    
+    if( pc < SYNC_PC ){
+      lastOpType = SYNC_OP;
+      async_searchRequest( nextNodeId, cId, H);
+    } else {
+      lastOpType = ASYNC_OP;
+      async_aSearchRequest( nextNodeId, cId, H);
+    }
+  }
+
+  async [Client<cId>] requestReply( const uint32_t& cId ) {
+    ADD_SELECTORS("BinaryTreeApp");
+
+    uint64_t lastReqLatency = mace::getmtime() - lastReqLauchedTime;
+    totalReqCount ++;
+    totalReqLatency += lastReqLatency;
+
+    if( lastOpType == SYNC_OP ) {
+      syncReqCount ++;
+      syncReqLatency += lastReqLatency;
+    } else {
+      asyncReqCount ++;
+      asyncReqLatency += lastReqLatency;
+    } 
+
+    if( totalReqCount % OUTPUT_COUNT == 0 ) {
+      double avgReqLatency = totalReqLatency / OUTPUT_COUNT;
+
+      double avgSyncReqLatency = 0;
+      if( syncReqCount > 0 ) {
+        avgSyncReqLatency = syncReqLatency/syncReqCount;
+      }
+
+      double avgAsyncReqLatency = 0;
+      if( asyncReqCount > 0 ) {
+        avgAsyncReqLatency = asyncReqLatency/asyncReqCount;
+      }
+
+      maceout << "Client("<< cId <<") totalReqCount=" << totalReqCount << " avgReqLatency=" << avgReqLatency <<"; syncReqCount=" << syncReqCount << " avgSyncReqLatency="<< avgSyncReqLatency <<"; asyncReqCount=" << asyncReqCount << " avgAsyncReqLatency="<< avgAsyncReqLatency <<  Log::endl;
+      
+      totalReqLatency = 0;
+
+      syncReqCount = 0;
+      syncReqLatency = 0;
+
+      asyncReqCount = 0;
+      asyncReqLatency = 0;
+    }
+
+
+    uint32_t nextNodeId= ( rand()+cId ) % MAX_N_NODE + 1;
+    
+    uint64_t pc = ( rand()+nextNodeId ) % 100;
+    lastReqLauchedTime = mace::getmtime();
+    
+    if( pc < SYNC_PC ){
+      lastOpType = SYNC_OP;
+      async_searchRequest( nextNodeId, cId, H);
+    } else {
+      lastOpType = ASYNC_OP;
+      async_aSearchRequest( nextNodeId, cId, H);
+    }
+  }
+
+  async [BinaryTree] initBinaryTree() {
+    ADD_SELECTORS("BinaryTreeApp");
+    maceout<< "Initialize BinaryTree!" << Log::endl;
+
+    nextNodeId = 1;
+    rootNodeId = 0;
+
+    async_createTreeNode();
+  }
+
+  async [BinaryTree] createTreeNode() {
+    ADD_SELECTORS("BinaryTreeApp");
+
+    if( nextNodeId > MAX_N_NODE ){
+      for( uint32_t i=1; i<=N_CLIENT; i++ ){
+        async_initClient(i);
+      }
+      return;
+    }
+
+    uint32_t nodeId = nextNodeId;
+    nextNodeId ++;
+    maceout<< "Create TreeNode["<< nodeId <<"]!" << Log::endl;
+
+    if( rootNodeId == 0 ){
+      rootNodeId = nodeId;
+      mace::string contextName = generateContextName("BinaryTreeNode", nodeId);
+      createNewOwnership("BinaryTree", contextName);
+      broadcast_initTreeNode(nodeId);
+    } else {
+      broadcast_createTreeNodeInTree(rootNodeId, nodeId);
+    }
+    async_createTreeNode();
+  }
+
+  broadcast [BinaryTreeNode<nodeId>] createTreeNodeInTree(const uint32_t& nodeId, const uint32_t& newNodeId) {
+    bool create_ownership = false;
+    if( nodeId == 1 ){
+      if( newNodeId % 2 != 0 ) {
+        if( l_node == 0 ){
+          l_node = newNodeId;
+          n_l_children ++;
+          
+          create_ownership = true;
+        } else {
+          broadcast_createTreeNodeInTree( l_node, newNodeId );
+        }
+      } else {
+        if( r_node == 0 ){
+          r_node = newNodeId;
+          n_r_children ++;
+          
+          create_ownership = true;
+        } else {
+          broadcast_createTreeNodeInTree( r_node, newNodeId );
+        }
+      }
+    } else {
+      if( n_l_children <= n_r_children ) {
+        if( l_node == 0 ){
+          l_node = newNodeId;
+          n_l_children ++;
+          
+          create_ownership = true;
+        } else {
+          broadcast_createTreeNodeInTree( l_node, newNodeId );
+        }
+      } else {
+        if( r_node == 0 ){
+          r_node = newNodeId;
+          n_r_children ++;
+          
+          create_ownership = true;
+        } else {
+          broadcast_createTreeNodeInTree( r_node, newNodeId );
+        }
+      }
+    }
+
+    if( create_ownership ) {
+      mace::string myContextName = generateContextName("BinaryTreeNode", nodeId);
+      mace::string childContextName = generateContextName("BinaryTreeNode", newNodeId);
+      createNewOwnership(myContextName, childContextName);
+      broadcast_initTreeNode(newNodeId);
+    }
+  }
+
+  broadcast [BinaryTreeNode<nodeId>] initTreeNode( const uint32_t& nodeId) {
+    ADD_SELECTORS("BinaryTreeApp");
+    maceout << "To initialize BinaryTreeNode["<< nodeId <<"]" << Log::endl;
+    l_node = 0;
+    r_node = 0;
+    n_l_children = 0;
+    n_r_children = 0;
+  }
+
+  async [BinaryTreeNode<nodeId>] aSearchRequest( const uint32_t& nodeId, const uint32_t& clientId, const uint32_t& H ) {
+    ADD_SELECTORS("BinaryTreeApp");
+
+    doComputation();
+
+    uint32_t next_H = H - 1;
+    
+    uint32_t nextNode = ( rand()+clientId+nodeId ) % 100;
+    if( nextNode < 50 && l_node > 0 && next_H > 0 ){
+      broadcast_aSearchRequestInTree( l_node, clientId, next_H );
+    } else if( nextNode >= 50 && r_node > 0 && next_H > 0 ) {
+      broadcast_aSearchRequestInTree( r_node, clientId, next_H );
+    } else {
+      async_requestReply(clientId);
+    }
+
+  }
+
+  broadcast [BinaryTreeNode<nodeId>] aSearchRequestInTree( const uint32_t& nodeId, const uint32_t& clientId, const uint32_t& H ) {
+    ADD_SELECTORS("BinaryTreeApp");
+
+    doComputation();
+
+    uint32_t next_H = H - 1;
+    
+    uint32_t nextNode = ( rand()+clientId+nodeId ) % 100;
+    if( nextNode < 50 && l_node > 0 && next_H > 0 ){
+      broadcast_aSearchRequestInTree( l_node, clientId, next_H );
+    } else if( nextNode >= 50 && r_node > 0 && next_H > 0 ) {
+      broadcast_aSearchRequestInTree( r_node, clientId, next_H );
+    } else {
+      async_requestReply(clientId);
+    }
+
+  }
+
+  async [BinaryTreeNode<nodeId>] searchRequest( const uint32_t& nodeId, const uint32_t& clientId, const uint32_t& H ) {
+    ADD_SELECTORS("BinaryTreeApp");
+
+    doComputation();
+
+    uint32_t next_H = H - 1;
+    
+    uint32_t nextNode = ( rand()+clientId+nodeId ) % 100;
+    if( nextNode < 50 && l_node > 0 && next_H > 0 ){
+      searchRequestInTree( l_node, clientId, next_H );
+    } else if( nextNode >= 50 && r_node > 0 && next_H > 0 ) {
+      searchRequestInTree( r_node, clientId, next_H );
+    } else {
+      async_requestReply(clientId);
+    }
+
+  }
+}
+
+routines {
+
+  [__null] mace::string generateContextName( const mace::string& ctxName, const uint32_t& id) {
+    std::ostringstream oss;
+    oss << ctxName <<"["<<id<<"]";
+    return oss.str();
+  }
+
+
+  [BinaryTreeNode<nodeId>] void searchRequestInTree( const uint32_t& nodeId, const uint32_t& clientId, const uint32_t& H ) {
+    ADD_SELECTORS("BinaryTreeApp");
+
+    doComputation();
+
+    uint32_t next_H = H - 1;
+    
+    uint32_t nextNode = ( rand()+clientId+nodeId ) % 100;
+    if( nextNode < 50 && l_node > 0 && next_H > 0 ){
+      searchRequestInTree( l_node, clientId, next_H );
+    } else if( nextNode >= 50 && r_node > 0 && next_H > 0 ) {
+      searchRequestInTree( r_node, clientId, next_H );
+    } else {
+      async_requestReply(clientId);
+    }
+
+  }
+
+  [__null] void doComputation() {
+    uint64_t m = 0;
+    
+    for( uint32_t i=0; i<OUTER_LOOP; i++ ){
+      m = RandomUtil::randInt(i);
+      for( uint32_t j=0; j<INNER_LOOP; j++ ){
+        m ++;
+      }
+    }
+  }
+
+}
+

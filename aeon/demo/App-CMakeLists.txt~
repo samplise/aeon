@@ -1,0 +1,34 @@
+SET(APPS contextrun)
+SET(SERVICES TcpTransport 
+  #MISmulti 
+	#MicroBenchmark 
+  #	GOLmulti
+	#TagServer TagClient TagClientRG
+	#TagServerAsync
+	#KeyValueServer KeyValueClient
+  #FakeTagServer FakeTagClient
+	#TestTimerServer TestTimerClient
+	#TestTimer
+	#SiloDatabase
+	#ElasticMemcached
+	#MemcachedClient MemcachedServer MemcachedDatabase
+	#SimpleMemcachedClient SimpleMemcachedServer
+	#SimpleTwitter
+	#ElasticMemcachedClient ElasticMemcachedServer
+	#SerializeTest
+	BTreeServer BTreeClient
+	#BinaryTreeApp
+	#PageRankApp
+	#TagAppServer TagAppClient
+	#TagItemShareAppServer TagItemShareAppClient
+	#ListApp
+	#TagAppSoloServer
+	#SiloDatabaseClient SiloDatabaseServer
+	#PiazzaAppClient PiazzaAppServer
+	#ElasticPiazzaAppClient ElasticPiazzaAppServer
+	#ElasticTagAppClient ElasticTagAppServer
+	#EManagerMigration
+	#TreeTPCCAppServer TreeTPCCAppClient
+)
+
+INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/../application.cmake)

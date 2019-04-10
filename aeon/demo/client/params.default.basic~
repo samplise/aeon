@@ -1,0 +1,36 @@
+run_time = 0
+#MACE_LOG_AUTO_ALL = 1
+#MACE_LOG_LEVEL = 1
+MACE_LOG_AUTO_SELECTORS = ElasticPiazzaAppClient
+
+NUM_ASYNC_THREADS = 8
+MAX_ASYNC_THREADS = 8
+
+NUM_TRANSPORT_THREADS = 8
+MAX_TRANSPORT_THREADS = 8
+
+MIN_CONTEXT_THREADS = 8
+MAX_CONTEXT_THREADS = 8
+
+MACE_PORT = 6501
+CLIENT_FLAG = 1
+
+service = ElasticPiazzaAppClient
+
+ServiceConfig.ElasticPiazzaAppClient.D_PERCENT = 0
+ServiceConfig.ElasticPiazzaAppClient.C_PERCENT = 0
+ServiceConfig.ElasticPiazzaAppClient.S_PERCENT = 10
+
+ServiceConfig.PiazzaAppClient.OUTPUT_COUNT = 100
+
+ServiceConfig.ElasticPiazzaAppClient.WARMUP_TIME_PERIOD = 5
+ServiceConfig.ElasticPiazzaAppClient.DAY_PERIOD = 180
+ServiceConfig.ElasticPiazzaAppClient.DAY_NUMBER = 1
+
+ServiceConfig.ElasticPiazzaAppClient.DAY_JOIN = 0.2
+ServiceConfig.ElasticPiazzaAppClient.DAY_LEAVE = 0.5
+ServiceConfig.ElasticPiazzaAppClient.DAY_ERROR = 0.15
+
+mapping = 0:Controller
+ownership = globalContext:Controller
+

@@ -1,0 +1,39 @@
+run_time = 0
+#MACE_LOG_AUTO_ALL = 1
+#MACE_LOG_LEVEL = 1
+MACE_LOG_AUTO_SELECTORS = ElasticTagAppServer 
+#ContextBaseClass::resumeParams ContextBaseClassParams::initialize HeadEventTP::commitGlobalEvent HeadEventTP::executeContextMigrationEvent ContextService::handle__event_TransferContext ContextBaseClass::resumeExecution ContextService::eraseContextData ContextService::handle__event_ContextMigrationRequest ContextService::handle__event_MigrateContext HeadEventTP::executeGlobalEventProcess HeadEventTP::setMigratingContexts ContextBaseClass::waitingForMessagesDone ContextBaseClass::decreaseHandlingMessageNumber ContextService::releaseBlockedMessageForMigration ContextService::checkAndUpdateContextMapping ContextService::getUpdatedContextMapping ContextService::wakeupContextMappingUpdateThreads ContextService::addMigratingContextName ContextService::handle__event_MigrationControl HeadEventTP::waitingForMigrationContextMappingUpdate ContextService::handleMessageForNullContext ContextService::checkMigratingContext ContextService::checkCommingContext
+
+NUM_ASYNC_THREADS = 8
+MAX_ASYNC_THREADS = 16
+
+NUM_TRANSPORT_THREADS = 8
+MAX_TRANSPORT_THREADS = 16
+
+MIN_CONTEXT_THREADS = 8
+MAX_CONTEXT_THREADS = 8
+
+MACE_PORT = 6501
+SET_TCP_NODELAY = 1
+CLIENT_FLAG = 0
+
+service = ElasticTagAppServer
+
+ServiceConfig.ElasticTagAppServer.MIN_N_SERVERS = 1
+ServiceConfig.ElasticTagAppServer.MID_N_SERVERS = 2
+ServiceConfig.ElasticTagAppServer.MAX_N_SERVERS = 4
+ServiceConfig.ElasticTagAppServer.OUTER_LOOP = 100
+ServiceConfig.ElasticTagAppServer.INNER_LOOP = 10000
+
+ServiceConfig.ElasticTagAppServer.ENANBLE_MIGRATION = 0
+
+
+ServiceConfig.ElasticTagAppServer.MIGRATION_STAGE1_THRESHOLD = 6
+ServiceConfig.ElasticTagAppServer.MIGRATION_STAGE2_THRESHOLD = 12
+ServiceConfig.ElasticTagAppServer.OUTPUT_COUNT = 100
+
+
+ownership = globalContext:Controller
+
+mapping = 0:Controller
+
